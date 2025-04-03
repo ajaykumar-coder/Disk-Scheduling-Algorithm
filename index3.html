@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disk Scheduling Algorithm</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #121313;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+        }
+
+        nav ul {
+            display: flex;
+            justify-content: center;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        nav li {
+            margin: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        nav li:hover {
+            background-color: #2980b9;
+        }
+
+        #algorithm-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .algorithm {
+            display: none;
+        }
+
+        .algorithm.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .results {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .seek-sequence {
+            margin-top: 1rem;
+            font-family: monospace;
+        }
+
+        .visualization {
+            margin-top: 1rem;
+            height: 60px;
+            background-color: #eee;
+            position: relative;
+        }
+
+        .disk-track {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background-color: #999;
+        }
+
+        .head-movement {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background-color: red;
+            transition: left 0.5s;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Disk Scheduling Algorithm</h1>
+        <nav>
+            <ul>
+                <li onclick="toggleAlgorithm('FCFS')">First Come First Serve (FCFS)</li>
+                <li onclick="toggleAlgorithm('CSCAN')">C-SCAN</li>
+                <li onclick="toggleAlgorithm('LOOK')">LOOK</li>
+                <li onclick="toggleAlgorithm('CLOOK')">C-LOOK</li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="algorithm-container">
+        <!-- FCFS Algorithm -->
+        <div id="FCFS" class="algorithm">
+            <h2>First Come First Serve (FCFS)</h2>
+            <div class="input-group">
+                <label for="fcfs-requests">Request Queue (comma separated):</label>
+                <input type="text" id="fcfs-requests" value="98, 183, 37, 122, 14, 124, 65, 67">
+            </div>
+            <div class="input-group">
+                <label for="fcfs-head">Initial Head Position:</label>
+                <input type="number" id="fcfs-head" value="53">
+            </div>
+            <button onclick="calculateFCFS()">Calculate</button>
+            <div id="fcfs-results" class="results" style="display: none;">
+                <h3>Results</h3>
+                <p>Total Seek Time: <span id="fcfs-total-seek">0</span></p>
+                <p>Average Seek Time: <span id="fcfs-avg-seek">0</span></p>
+                <div class="seek-sequence">
+                    <p>Seek Sequence:</p>
+                    <p id="fcfs-sequence"></p>
+                </div>
+                <div class="visualization" id="fcfs-visualization"></div>
+            </div>
+        </div>
+
+        <!-- C-SCAN Algorithm -->
+        <div id="CSCAN" class="algorithm">
+            <h2>C-SCAN (Circular SCAN)</h2>
+            <div class="input-group">
+                <label for="cscan-requests">Request Queue (comma separated):</label>
+                <input type="text" id="cscan-requests" value="98, 183, 37, 122, 14, 124, 65, 67">
+            </div>
+            <div class="input-group">
+                <label for="cscan-head">Initial Head Position:</label>
+                <input type="number" id="cscan-head" value="53">
+            </div>
+            <div class="input-group">
+                <label for="cscan-disk-size">Disk Size:</label>
+                <input type="number" id="cscan-disk-size" value="200">
+            </div>
+            <div class="input-group">
+                <label for="cscan-direction">Initial Direction:</label>
+                <select id="cscan-direction">
+                    <option value="left">Left (Decreasing)</option>
+                    <option value="right">Right (Increasing)</option>
+                </select>
+            </div>
+            <button onclick="calculateCSCAN()">Calculate</button>
+            <div id="cscan-results" class="results" style="display: none;">
+                <h3>Results</h3>
+                <p>Total Seek Time: <span id="cscan-total-seek">0</span></p>
+                <p>Average Seek Time: <span id="cscan-avg-seek">0</span></p>
+                <div class="seek-sequence">
+                    <p>Seek Sequence:</p>
+                    <p id="cscan-sequence"></p>
+                </div>
+                <div class="visualization" id="cscan-visualization"></div>
+            </div>
+        </div>
+
+        <!-- LOOK Algorithm -->
+        <div id="LOOK" class="algorithm">
+            <h2>LOOK Algorithm</h2>
+            <div class="input-group">
+                <label for="look-requests">Request Queue (comma separated):</label>
+                <input type="text" id="look-requests" value="98, 183, 37, 122, 14, 124, 65, 67">
+            </div>
+            <div class="input-group">
+                <label for="look-head">Initial Head Position:</label>
+                <input type="number" id="look-head" value="53">
+            </div>
+            <div class="input-group">
+                <label for="look-direction">Initial Direction:</label>
+                <select id="look-direction">
+                    <option value="left">Left (Decreasing)</option>
+                    <option value="right">Right (Increasing)</option>
+                </select>
+            </div>
+            <button onclick="calculateLOOK()">Calculate</button>
+            <div id="look-results" class="results" style="display: none;">
+                <h3>Results</h3>
+                <p>Total Seek Time: <span id="look-total-seek">0</span></p>
+                <p>Average Seek Time: <span id="look-avg-seek">0</span></p>
+                <div class="seek-sequence">
+                    <p>Seek Sequence:</p>
+                    <p id="look-sequence"></p>
+                </div>
+                <div class="visualization" id="look-visualization"></div>
+            </div>
+        </div>
+
+        <!-- C-LOOK Algorithm -->
+        <div id="CLOOK" class="algorithm">
+            <h2>C-LOOK Algorithm</h2>
+            <div class="input-group">
+                <label for="clook-requests">Request Queue (comma separated):</label>
+                <input type="text" id="clook-requests" value="98, 183, 37, 122, 14, 124, 65, 67">
+            </div>
+            <div class="input-group">
+                <label for="clook-head">Initial Head Position:</label>
+                <input type="number" id="clook-head" value="53">
+            </div>
+            <div class="input-group">
+                <label for="clook-direction">Initial Direction:</label>
+                <select id="clook-direction">
+                    <option value="left">Left (Decreasing)</option>
+                    <option value="right">Right (Increasing)</option>
+                </select>
+            </div>
+            <button onclick="calculateCLOOK()">Calculate</button>
+            <div id="clook-results" class="results" style="display: none;">
+                <h3>Results</h3>
+                <p>Total Seek Time: <span id="clook-total-seek">0</span></p>
+                <p>Average Seek Time: <span id="clook-avg-seek">0</span></p>
+                <div class="seek-sequence">
+                    <p>Seek Sequence:</p>
+                    <p id="clook-sequence"></p>
+                </div>
+                <div class="visualization" id="clook-visualization"></div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>This Project is Done By 1 Team as a Project of Operating System.</p>
+    </footer>
+
+    <script>
+        // Show FCFS by default when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleAlgorithm('FCFS');
+        });
+
+        function toggleAlgorithm(algorithm) {
+            // Hide all algorithm sections
+            document.querySelectorAll('.algorithm').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show the selected algorithm
+            document.getElementById(algorithm).classList.add('active');
+        }
+
+        function calculateFCFS() {
+            // Get input values
+            const requests = document.getElementById('fcfs-requests').value
+                .split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+                
+            const head = parseInt(document.getElementById('fcfs-head').value);
+            
+            // Validate inputs
+            if (isNaN(head)) {
+                alert("Please enter a valid initial head position");
+                return;
+            }
+            
+            if (requests.length === 0) {
+                alert("Please enter valid disk requests");
+                return;
+            }
+            
+            // Calculate FCFS
+            const seekSequence = [head, ...requests];
+            let totalSeek = 0;
+            
+            for (let i = 0; i < seekSequence.length - 1; i++) {
+                totalSeek += Math.abs(seekSequence[i+1] - seekSequence[i]);
+            }
+            
+            const avgSeek = totalSeek / requests.length;
+            
+            // Display results
+            document.getElementById('fcfs-total-seek').textContent = totalSeek;
+            document.getElementById('fcfs-avg-seek').textContent = avgSeek.toFixed(2);
+            document.getElementById('fcfs-sequence').textContent = seekSequence.join(" → ");
+            
+            // Show visualization
+            visualize('fcfs-visualization', seekSequence, Math.max(...seekSequence));
+            
+            // Show results
+            document.getElementById('fcfs-results').style.display = 'block';
+        }
+
+        function calculateCSCAN() {
+            // Get input values
+            const requests = document.getElementById('cscan-requests').value
+                .split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+                
+            const head = parseInt(document.getElementById('cscan-head').value);
+            const diskSize = parseInt(document.getElementById('cscan-disk-size').value);
+            const direction = document.getElementById('cscan-direction').value;
+            
+            // Validate inputs
+            if (isNaN(head) || isNaN(diskSize)) {
+                alert("Please enter valid numbers for head position and disk size");
+                return;
+            }
+            
+            if (requests.length === 0) {
+                alert("Please enter valid disk requests");
+                return;
+            }
+            
+            // Calculate C-SCAN
+            let left = [];
+            let right = [];
+            
+            // Divide requests into left and right of initial head
+            for (let request of requests) {
+                if (request < head) {
+                    left.push(request);
+                } else if (request > head) {
+                    right.push(request);
+                }
+            }
+            
+            // Sort left in ascending and right in ascending order
+            left.sort((a, b) => a - b);
+            right.sort((a, b) => a - b);
+            
+            let seekSequence = [head];
+            let totalSeek = 0;
+            
+            if (direction === 'left') {
+                // First service left direction (from head to 0)
+                for (let i = left.length - 1; i >= 0; i--) {
+                    seekSequence.push(left[i]);
+                }
+                
+                // Jump to 0 and then to diskSize
+                seekSequence.push(0);
+                seekSequence.push(diskSize);
+                
+                // Then service right direction in reverse (from diskSize down)
+                for (let i = right.length - 1; i >= 0; i--) {
+                    seekSequence.push(right[i]);
+                }
+            } else {
+                // First service right direction (from head to diskSize)
+                for (let request of right) {
+                    seekSequence.push(request);
+                }
+                
+                // Jump to diskSize and then to 0
+                seekSequence.push(diskSize);
+                seekSequence.push(0);
+                
+                // Then service left direction
+                for (let request of left) {
+                    seekSequence.push(request);
+                }
+            }
+            
+            // Calculate total seek time
+            for (let i = 0; i < seekSequence.length - 1; i++) {
+                totalSeek += Math.abs(seekSequence[i+1] - seekSequence[i]);
+            }
+            
+            const avgSeek = totalSeek / requests.length;
+            
+            // Display results
+            document.getElementById('cscan-total-seek').textContent = totalSeek;
+            document.getElementById('cscan-avg-seek').textContent = avgSeek.toFixed(2);
+            document.getElementById('cscan-sequence').textContent = seekSequence.join(" → ");
+            
+            // Show visualization
+            visualize('cscan-visualization', seekSequence, diskSize);
+            
+            // Show results
+            document.getElementById('cscan-results').style.display = 'block';
+        }
+
+        function calculateLOOK() {
+            // Get input values
+            const requests = document.getElementById('look-requests').value
+                .split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+                
+            const head = parseInt(document.getElementById('look-head').value);
+            const direction = document.getElementById('look-direction').value;
+            
+            // Validate inputs
+            if (isNaN(head)) {
+                alert("Please enter a valid initial head position");
+                return;
+            }
+            
+            if (requests.length === 0) {
+                alert("Please enter valid disk requests");
+                return;
+            }
+            
+            // Calculate LOOK
+            let left = [];
+            let right = [];
+            
+            // Divide requests into left and right of initial head
+            for (let request of requests) {
+                if (request < head) {
+                    left.push(request);
+                } else if (request > head) {
+                    right.push(request);
+                }
+            }
+            
+            // Sort left in descending and right in ascending order
+            left.sort((a, b) => b - a);
+            right.sort((a, b) => a - b);
+            
+            let seekSequence = [head];
+            let totalSeek = 0;
+            
+            if (direction === 'left') {
+                // First service left direction
+                for (let request of left) {
+                    seekSequence.push(request);
+                }
+                
+                // Then service right direction
+                for (let request of right) {
+                    seekSequence.push(request);
+                }
+            } else {
+                // First service right direction
+                for (let request of right) {
+                    seekSequence.push(request);
+                }
+                
+                // Then service left direction
+                for (let request of left) {
+                    seekSequence.push(request);
+                }
+            }
+            
+            // Calculate total seek time
+            for (let i = 0; i < seekSequence.length - 1; i++) {
+                totalSeek += Math.abs(seekSequence[i+1] - seekSequence[i]);
+            }
+            
+            const avgSeek = totalSeek / requests.length;
+            
+            // Display results
+            document.getElementById('look-total-seek').textContent = totalSeek;
+            document.getElementById('look-avg-seek').textContent = avgSeek.toFixed(2);
+            document.getElementById('look-sequence').textContent = seekSequence.join(" → ");
+            
+            // Show visualization
+            visualize('look-visualization', seekSequence, Math.max(...seekSequence));
+            
+            // Show results
+            document.getElementById('look-results').style.display = 'block';
+        }
+
+        function calculateCLOOK() {
+            // Get input values
+            const requests = document.getElementById('clook-requests').value
+                .split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+                
+            const head = parseInt(document.getElementById('clook-head').value);
+            const direction = document.getElementById('clook-direction').value;
+            
+            // Validate inputs
+            if (isNaN(head)) {
+                alert("Please enter a valid initial head position");
+                return;
+            }
+            
+            if (requests.length === 0) {
+                alert("Please enter valid disk requests");
+                return;
+            }
+            
+            // Calculate C-LOOK
+            let left = [];
+            let right = [];
+            
+            // Divide requests into left and right of initial head
+            for (let request of requests) {
+                if (request < head) {
+                    left.push(request);
+                } else if (request > head) {
+                    right.push(request);
+                }
+            }
+            
+            // Sort both arrays in ascending order
+            left.sort((a, b) => a - b);
+            right.sort((a, b) => a - b);
+            
+            let seekSequence = [head];
+            let totalSeek = 0;
+            
+            if (direction === 'left') {
+                // First service left direction (from highest to lowest)
+                for (let i = left.length - 1; i >= 0; i--) {
+                    seekSequence.push(left[i]);
+                }
+                
+                // Then jump to highest in right and service right in reverse
+                if (right.length > 0) {
+                    seekSequence.push(right[right.length - 1]);
+                    for (let i = right.length - 2; i >= 0; i--) {
+                        seekSequence.push(right[i]);
+                    }
+                }
+            } else {
+                // First service right direction
+                for (let request of right) {
+                    seekSequence.push(request);
+                }
+                
+                // Then jump to lowest in left and service left
+                if (left.length > 0) {
+                    seekSequence.push(left[0]);
+                    for (let i = 1; i < left.length; i++) {
+                        seekSequence.push(left[i]);
+                    }
+                }
+            }
+            
+            // Calculate total seek time
+            for (let i = 0; i < seekSequence.length - 1; i++) {
+                totalSeek += Math.abs(seekSequence[i+1] - seekSequence[i]);
+            }
+            
+            const avgSeek = totalSeek / requests.length;
+            
+            // Display results
+            document.getElementById('clook-total-seek').textContent = totalSeek;
+            document.getElementById('clook-avg-seek').textContent = avgSeek.toFixed(2);
+            document.getElementById('clook-sequence').textContent = seekSequence.join(" → ");
+            
+            // Show visualization
+            visualize('clook-visualization', seekSequence, Math.max(...seekSequence));
+            
+            // Show results
+            document.getElementById('clook-results').style.display = 'block';
+        }
+
+        function visualize(elementId, sequence, diskSize) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            // Create disk tracks
+            for (let i = 0; i <= 10; i++) {
+                const track = document.createElement('div');
+                track.className = 'disk-track';
+                track.style.left = `${(i * 10)}%`;
+                container.appendChild(track);
+            }
+            
+            // Create head movement visualization
+            let currentPos = 0;
+            const head = document.createElement('div');
+            head.className = 'head-movement';
+            head.style.left = `${(sequence[0] / diskSize) * 100}%`;
+            container.appendChild(head);
+            
+            // Animate the head movement
+            let delay = 0;
+            for (let i = 1; i < sequence.length; i++) {
+                setTimeout(() => {
+                    head.style.left = `${(sequence[i] / diskSize) * 100}%`;
+                }, delay);
+                delay += 500;
+            }
+        }
+    </script>
+</body>
+</html>
